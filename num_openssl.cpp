@@ -127,14 +127,29 @@ int Number::GetBits() const {
 }
 
 int Number::ShiftLowBits(int bits) {
-    unsigned char to[8];
-    BN_bn2bin(this->pb, to);
-    
-    //TODO:FIX
+    //BIGNUM* bn = *this;
+    //int ret = BN_is_zero(bn) ? 0 : bn->d[0] & ((1 << bits) - 1);
+    //BN_rshift(*this, *this, bits);
     int ret = 0;
 
-    //int ret = BN_is_zero(this->pb) ? 0 : bn->d[0] & ((1 << bits) - 1);
-    BN_rshift(this->pb, this->pb, bits);
+    if (!BN_is_zero(this->pb))
+    {
+        //HIGH BITS are leading
+        BN_ULONG val = 0;
+        int s = BN_num_bits(this->pb);
+        if (s >= sizeof(BN_ULONG) * 8) {
+            BIGNUM* a = BN_new();
+            BN_copy(a, this->pb);
+            BN_mask_bits(a, sizeof(BN_ULONG) * 8);
+            val = BN_get_word(a);
+            BN_free(a);
+        }
+        else {
+            val = BN_get_word(this->pb);
+        }
+        BN_rshift(this->pb, this->pb, bits);
+        ret = val & ((1ULL << bits) - 1);
+    }    
     return ret;
 }
 
