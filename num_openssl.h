@@ -2,13 +2,12 @@
 #define _SECP256K1_NUM_OPENSSL_
 
 #include <string>
-#include <openssl/bn.h>
-
+#include <openssl/types.h>
 namespace secp256k1 {
 
 class Number {
 private:
-    BIGNUM b;
+    BIGNUM* pb;
     Number(const Number &x);
 
     operator const BIGNUM*() const;

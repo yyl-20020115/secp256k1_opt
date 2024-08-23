@@ -6,11 +6,11 @@ using namespace std;
 
 #include "num.h"
 #include "field.h"
-
+#include "int128.h"
 // #define VERIFY_MAGNITUDE 1
 
 namespace secp256k1 {
-
+    using namespace large_int;
 /** Implements arithmetic modulo FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFE FFFFFC2F,
  *  represented as 5 uint64_t's in base 2^52. The values are allowed to contain >52 each. In particular,
  *  each FieldElem has a 'magnitude' associated with it. Internally, a magnitude M means each element
@@ -77,14 +77,14 @@ void FieldElem::Normalize() {
 #endif
 }
 
-bool inline FieldElem::IsZero() const {
+bool FieldElem::IsZero() const {
 #ifdef VERIFY_MAGNITUDE
     assert(normalized);
 #endif
     return (n[0] == 0 && n[1] == 0 && n[2] == 0 && n[3] == 0 && n[4] == 0);
 }
 
-bool inline operator==(const FieldElem &a, const FieldElem &b) {
+bool operator==(const FieldElem &a, const FieldElem &b) {
 #ifdef VERIFY_MAGNITUDE
     assert(a.normalized);
     assert(b.normalized);
@@ -122,7 +122,7 @@ void FieldElem::SetBytes(const unsigned char *in) {
 #endif
 }
 
-void inline FieldElem::SetNeg(const FieldElem &a, int magnitudeIn) {
+void FieldElem::SetNeg(const FieldElem &a, int magnitudeIn) {
 #ifdef VERIFY_MAGNITUDE
     assert(a.magnitude <= magnitudeIn);
     magnitude = magnitudeIn + 1;
@@ -135,7 +135,7 @@ void inline FieldElem::SetNeg(const FieldElem &a, int magnitudeIn) {
     n[4] = 0x0FFFFFFFFFFFFULL * (magnitudeIn + 1) - a.n[4];
 }
 
-void inline FieldElem::operator*=(int v) {
+void  FieldElem::operator*=(int v) {
 #ifdef VERIFY_MAGNITUDE
     magnitude *= v;
     normalized = false;
@@ -147,7 +147,7 @@ void inline FieldElem::operator*=(int v) {
     n[4] *= v;
 }
 
-void inline FieldElem::operator+=(const FieldElem &a) {
+void  FieldElem::operator+=(const FieldElem &a) {
 #ifdef VERIFY_MAGNITUDE
     magnitude += a.magnitude;
     normalized = false;
@@ -164,55 +164,56 @@ void FieldElem::SetMult(const FieldElem &a, const FieldElem &b) {
     assert(a.magnitude <= 8);
     assert(b.magnitude <= 8);
 #endif
-    __int128 c = (__int128)a.n[0] * b.n[0];
-    uint64_t t0 = c & 0xFFFFFFFFFFFFFULL; c = c >> 52; // c max 0FFFFFFFFFFFFFE0
-    c = c + (__int128)a.n[0] * b.n[1] +
-            (__int128)a.n[1] * b.n[0];
-    uint64_t t1 = c & 0xFFFFFFFFFFFFFULL; c = c >> 52; // c max 20000000000000BF
-    c = c + (__int128)a.n[0] * b.n[2] +
-            (__int128)a.n[1] * b.n[1] +
-            (__int128)a.n[2] * b.n[0];
-    uint64_t t2 = c & 0xFFFFFFFFFFFFFULL; c = c >> 52; // c max 30000000000001A0
-    c = c + (__int128)a.n[0] * b.n[3] +
-            (__int128)a.n[1] * b.n[2] +
-            (__int128)a.n[2] * b.n[1] +
-            (__int128)a.n[3] * b.n[0];
-    uint64_t t3 = c & 0xFFFFFFFFFFFFFULL; c = c >> 52; // c max 4000000000000280
-    c = c + (__int128)a.n[0] * b.n[4] +
-            (__int128)a.n[1] * b.n[3] +
-            (__int128)a.n[2] * b.n[2] +
-            (__int128)a.n[3] * b.n[1] +
-            (__int128)a.n[4] * b.n[0];
-    uint64_t t4 = c & 0xFFFFFFFFFFFFFULL; c = c >> 52; // c max 320000000000037E
-    c = c + (__int128)a.n[1] * b.n[4] +
-            (__int128)a.n[2] * b.n[3] +
-            (__int128)a.n[3] * b.n[2] +
-            (__int128)a.n[4] * b.n[1];
-    uint64_t t5 = c & 0xFFFFFFFFFFFFFULL; c = c >> 52; // c max 22000000000002BE
-    c = c + (__int128)a.n[2] * b.n[4] +
-            (__int128)a.n[3] * b.n[3] +
-            (__int128)a.n[4] * b.n[2];
-    uint64_t t6 = c & 0xFFFFFFFFFFFFFULL; c = c >> 52; // c max 12000000000001DE
-    c = c + (__int128)a.n[3] * b.n[4] +
-            (__int128)a.n[4] * b.n[3];
-    uint64_t t7 = c & 0xFFFFFFFFFFFFFULL; c = c >> 52; // c max 02000000000000FE
-    c = c + (__int128)a.n[4] * b.n[4];
-    uint64_t t8 = c & 0xFFFFFFFFFFFFFULL; c = c >> 52; // c max 001000000000001E
-    uint64_t t9 = c;
-    c = t0 + (__int128)t5 * 0x1000003D10ULL;
+    //_umul128(x, y, &(r_hi));
+    int128_t c = (int128_t)a.n[0] * b.n[0];
+    uint64_t t0 = (uint64_t)(c & 0xFFFFFFFFFFFFFULL); c = c >> 52; // c max 0FFFFFFFFFFFFFE0
+    c = c + (int128_t)a.n[0] * b.n[1] +
+            (int128_t)a.n[1] * b.n[0];
+    uint64_t t1 = (uint64_t)(c & 0xFFFFFFFFFFFFFULL); c = c >> 52; // c max 20000000000000BF
+    c = c + (int128_t)a.n[0] * b.n[2] +
+            (int128_t)a.n[1] * b.n[1] +
+            (int128_t)a.n[2] * b.n[0];
+    uint64_t t2 = (uint64_t)(c & 0xFFFFFFFFFFFFFULL); c = c >> 52; // c max 30000000000001A0
+    c = c + (int128_t)a.n[0] * b.n[3] +
+            (int128_t)a.n[1] * b.n[2] +
+            (int128_t)a.n[2] * b.n[1] +
+            (int128_t)a.n[3] * b.n[0];
+    uint64_t t3 = (uint64_t)(c & 0xFFFFFFFFFFFFFULL); c = c >> 52; // c max 4000000000000280
+    c = c + (int128_t)a.n[0] * b.n[4] +
+            (int128_t)a.n[1] * b.n[3] +
+            (int128_t)a.n[2] * b.n[2] +
+            (int128_t)a.n[3] * b.n[1] +
+            (int128_t)a.n[4] * b.n[0];
+    uint64_t t4 = (uint64_t)(c & 0xFFFFFFFFFFFFFULL); c = c >> 52; // c max 320000000000037E
+    c = c + (int128_t)a.n[1] * b.n[4] +
+            (int128_t)a.n[2] * b.n[3] +
+            (int128_t)a.n[3] * b.n[2] +
+            (int128_t)a.n[4] * b.n[1];
+    uint64_t t5 = (uint64_t)(c & 0xFFFFFFFFFFFFFULL); c = c >> 52; // c max 22000000000002BE
+    c = c + (int128_t)a.n[2] * b.n[4] +
+            (int128_t)a.n[3] * b.n[3] +
+            (int128_t)a.n[4] * b.n[2];
+    uint64_t t6 = (uint64_t)(c & 0xFFFFFFFFFFFFFULL); c = c >> 52; // c max 12000000000001DE
+    c = c + (int128_t)a.n[3] * b.n[4] +
+            (int128_t)a.n[4] * b.n[3];
+    uint64_t t7 = (uint64_t)(c & 0xFFFFFFFFFFFFFULL); c = c >> 52; // c max 02000000000000FE
+    c = c + (int128_t)a.n[4] * b.n[4];
+    uint64_t t8 = (uint64_t)(c & 0xFFFFFFFFFFFFFULL); c = c >> 52; // c max 001000000000001E
+    uint64_t t9 = (uint64_t)c;
+    c = t0 + (int128_t)t5 * 0x1000003D10ULL;
 
-    t0 = c & 0xFFFFFFFFFFFFFULL; c = c >> 52; // c max 0000001000003D10
-    c = c + t1 + (__int128)t6 * 0x1000003D10ULL;
-    t1 = c & 0xFFFFFFFFFFFFFULL; c = c >> 52; // c max 0000001000003D10
-    c = c + t2 + (__int128)t7 * 0x1000003D10ULL;
-    n[2] = c & 0xFFFFFFFFFFFFFULL; c = c >> 52; // c max 0000001000003D10
-    c = c + t3 + (__int128)t8 * 0x1000003D10ULL;
-    n[3] = c & 0xFFFFFFFFFFFFFULL; c = c >> 52; // c max 0000001000003D10
-    c = c + t4 + (__int128)t9 * 0x1000003D10ULL;
-    n[4] = c & 0x0FFFFFFFFFFFFULL; c = c >> 48; // c max 000001000003D110
-    c = t0 + (__int128)c * 0x1000003D1ULL;
-    n[0] = c & 0xFFFFFFFFFFFFFULL; c = c >> 52; // c max 1000008
-    n[1] = t1 + c;
+    t0 = (uint64_t)(c & 0xFFFFFFFFFFFFFULL); c = c >> 52; // c max 0000001000003D10
+    c = c + t1 + (int128_t)t6 * 0x1000003D10ULL;
+    t1 = (uint64_t)(c & 0xFFFFFFFFFFFFFULL); c = c >> 52; // c max 0000001000003D10
+    c = c + t2 + (int128_t)t7 * 0x1000003D10ULL;
+    n[2] = (uint64_t)(c & 0xFFFFFFFFFFFFFULL); c = c >> 52; // c max 0000001000003D10
+    c = c + t3 + (int128_t)t8 * 0x1000003D10ULL;
+    n[3] = (uint64_t)(c & 0xFFFFFFFFFFFFFULL); c = c >> 52; // c max 0000001000003D10
+    c = c + t4 + (int128_t)t9 * 0x1000003D10ULL;
+    n[4] = (uint64_t)(c & 0x0FFFFFFFFFFFFULL); c = c >> 48; // c max 000001000003D110
+    c = t0 + (int128_t)c * 0x1000003D1ULL;
+    n[0] = (uint64_t)(c & 0xFFFFFFFFFFFFFULL); c = c >> 52; // c max 1000008
+    n[1] = t1 + (uint64_t)c;
 #ifdef VERIFY_MAGNITUDE
     magnitude = 1;
     normalized = false;
@@ -223,44 +224,44 @@ void FieldElem::SetSquare(const FieldElem &a) {
 #ifdef VERIFY_MAGNITUDE
     assert(a.magnitude <= 8);
 #endif
-    __int128 c = (__int128)a.n[0] * a.n[0];
-    uint64_t t0 = c & 0xFFFFFFFFFFFFFULL; c = c >> 52; // c max 0FFFFFFFFFFFFFE0
-    c = c + (__int128)(a.n[0]*2) * a.n[1];
-    uint64_t t1 = c & 0xFFFFFFFFFFFFFULL; c = c >> 52; // c max 20000000000000BF
-    c = c + (__int128)(a.n[0]*2) * a.n[2] +
-            (__int128)a.n[1] * a.n[1];
-    uint64_t t2 = c & 0xFFFFFFFFFFFFFULL; c = c >> 52; // c max 30000000000001A0
-    c = c + (__int128)(a.n[0]*2) * a.n[3] +
-            (__int128)(a.n[1]*2) * a.n[2];
-    uint64_t t3 = c & 0xFFFFFFFFFFFFFULL; c = c >> 52; // c max 4000000000000280
-    c = c + (__int128)(a.n[0]*2) * a.n[4] +
-            (__int128)(a.n[1]*2) * a.n[3] +
-            (__int128)a.n[2] * a.n[2];
-    uint64_t t4 = c & 0xFFFFFFFFFFFFFULL; c = c >> 52; // c max 320000000000037E
-    c = c + (__int128)(a.n[1]*2) * a.n[4] +
-            (__int128)(a.n[2]*2) * a.n[3];
-    uint64_t t5 = c & 0xFFFFFFFFFFFFFULL; c = c >> 52; // c max 22000000000002BE
-    c = c + (__int128)(a.n[2]*2) * a.n[4] +
-            (__int128)a.n[3] * a.n[3];
-    uint64_t t6 = c & 0xFFFFFFFFFFFFFULL; c = c >> 52; // c max 12000000000001DE
-    c = c + (__int128)(a.n[3]*2) * a.n[4];
-    uint64_t t7 = c & 0xFFFFFFFFFFFFFULL; c = c >> 52; // c max 02000000000000FE
-    c = c + (__int128)a.n[4] * a.n[4];
-    uint64_t t8 = c & 0xFFFFFFFFFFFFFULL; c = c >> 52; // c max 001000000000001E
-    uint64_t t9 = c;
-    c = t0 + (__int128)t5 * 0x1000003D10ULL;
-    t0 = c & 0xFFFFFFFFFFFFFULL; c = c >> 52; // c max 0000001000003D10
-    c = c + t1 + (__int128)t6 * 0x1000003D10ULL;
-    t1 = c & 0xFFFFFFFFFFFFFULL; c = c >> 52; // c max 0000001000003D10
-    c = c + t2 + (__int128)t7 * 0x1000003D10ULL;
-    n[2] = c & 0xFFFFFFFFFFFFFULL; c = c >> 52; // c max 0000001000003D10
-    c = c + t3 + (__int128)t8 * 0x1000003D10ULL;
-    n[3] = c & 0xFFFFFFFFFFFFFULL; c = c >> 52; // c max 0000001000003D10
-    c = c + t4 + (__int128)t9 * 0x1000003D10ULL;
-    n[4] = c & 0x0FFFFFFFFFFFFULL; c = c >> 48; // c max 000001000003D110
-    c = t0 + (__int128)c * 0x1000003D1ULL;
-    n[0] = c & 0xFFFFFFFFFFFFFULL; c = c >> 52; // c max 1000008
-    n[1] = t1 + c;
+    int128_t c = (int128_t)a.n[0] * a.n[0];
+    uint64_t t0 = (uint64_t)(c & 0xFFFFFFFFFFFFFULL); c = c >> 52; // c max 0FFFFFFFFFFFFFE0
+    c = c + (int128_t)(a.n[0]*2) * a.n[1];
+    uint64_t t1 = (uint64_t)(c & 0xFFFFFFFFFFFFFULL); c = c >> 52; // c max 20000000000000BF
+    c = c + (int128_t)(a.n[0]*2) * a.n[2] +
+            (int128_t)a.n[1] * a.n[1];
+    uint64_t t2 = (uint64_t)(c & 0xFFFFFFFFFFFFFULL); c = c >> 52; // c max 30000000000001A0
+    c = c + (int128_t)(a.n[0]*2) * a.n[3] +
+            (int128_t)(a.n[1]*2) * a.n[2];
+    uint64_t t3 = (uint64_t)(c & 0xFFFFFFFFFFFFFULL); c = c >> 52; // c max 4000000000000280
+    c = c + (int128_t)(a.n[0]*2) * a.n[4] +
+            (int128_t)(a.n[1]*2) * a.n[3] +
+            (int128_t)a.n[2] * a.n[2];
+    uint64_t t4 = (uint64_t)(c & 0xFFFFFFFFFFFFFULL); c = c >> 52; // c max 320000000000037E
+    c = c + (int128_t)(a.n[1]*2) * a.n[4] +
+            (int128_t)(a.n[2]*2) * a.n[3];
+    uint64_t t5 = (uint64_t)(c & 0xFFFFFFFFFFFFFULL); c = c >> 52; // c max 22000000000002BE
+    c = c + (int128_t)(a.n[2]*2) * a.n[4] +
+            (int128_t)a.n[3] * a.n[3];
+    uint64_t t6 = (uint64_t)(c & 0xFFFFFFFFFFFFFULL); c = c >> 52; // c max 12000000000001DE
+    c = c + (int128_t)(a.n[3]*2) * a.n[4];
+    uint64_t t7 = (uint64_t)(c & 0xFFFFFFFFFFFFFULL); c = c >> 52; // c max 02000000000000FE
+    c = c + (int128_t)a.n[4] * a.n[4];
+    uint64_t t8 = (uint64_t)(c & 0xFFFFFFFFFFFFFULL); c = c >> 52; // c max 001000000000001E
+    uint64_t t9 = (uint64_t)c;
+    c = t0 + (int128_t)t5 * 0x1000003D10ULL;
+    t0 = (uint64_t)(c & 0xFFFFFFFFFFFFFULL); c = c >> 52; // c max 0000001000003D10
+    c = c + t1 + (int128_t)t6 * 0x1000003D10ULL;
+    t1 = (uint64_t)(c & 0xFFFFFFFFFFFFFULL); c = c >> 52; // c max 0000001000003D10
+    c = c + t2 + (int128_t)t7 * 0x1000003D10ULL;
+    n[2] = (uint64_t)(c & 0xFFFFFFFFFFFFFULL); c = c >> 52; // c max 0000001000003D10
+    c = c + t3 + (int128_t)t8 * 0x1000003D10ULL;
+    n[3] = (uint64_t)(c & 0xFFFFFFFFFFFFFULL); c = c >> 52; // c max 0000001000003D10
+    c = c + t4 + (int128_t)t9 * 0x1000003D10ULL;
+    n[4] = (uint64_t)(c & 0x0FFFFFFFFFFFFULL); c = c >> 48; // c max 000001000003D110
+    c = t0 + (int128_t)c * 0x1000003D1ULL;
+    n[0] = (uint64_t)(c & 0xFFFFFFFFFFFFFULL); c = c >> 52; // c max 1000008
+    n[1] = t1 + (uint64_t)c;
 #ifdef VERIFY_MAGNITUDE
     assert(a.magnitude <= 8);
     normalized = false;
